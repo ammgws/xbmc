@@ -32,6 +32,8 @@ import pyxbmct
 import socket
 import ssl
 import shlex
+import pyautogui
+
 
 addon = xbmcaddon.Addon()
 Dialog = xbmcgui.Dialog()
@@ -1552,71 +1554,47 @@ def Error(data):
 
 
 def Input(mousex=0, mousey=0, click=0, keys=None, delay='200'):
+    '''Control the user's mouse and/or keyboard.
+       
+       Arguments:
+         mousex, mousey - x, y co-ordinates from top left of screen
+         keys - list of keys to press (or just a string? usage seems unclear)
+    '''
     screenWidth = int(xbmc.getInfoLabel('System.ScreenWidth'))
     screenHeight = int(xbmc.getInfoLabel('System.ScreenHeight'))
-    keys_only = sc_only = keybd = ''
     mousex = screenWidth / 2 if mousex == -1 else mousex
     mousey = screenHeight / 2 if mousey == -1 else mousey
 
-    spec_keys = {'{EX}': ('!{F4}', 'control+shift+q', 'kd:cmd t:q ku:cmd'),
-                 '{SPC}': ('{SPACE}', 'space', 't:p'),
-                 '{LFT}': ('{LEFT}', 'Left', 'kp:arrow-left'),
-                 '{RGT}': ('{RIGHT}', 'Right', 'kp:arrow-right'),
-                 '{U}': ('{UP}', 'Up', 'kp:arrow-up'),
-                 '{DWN}': ('{DOWN}', 'Down', 'kp:arrow-down'),
-                 '{BACK}': ('{BS}', 'BackSpace', 'kp:delete'),
-                 '{RET}': ('{ENTER}', 'Return', 'kp:return')}
-
+    exit_cmd = {'osWindows': 'alt f4',
+                'osLinux': 'ctrl shift q',
+                'osOSX': 'command q',
+               }.get(platform)
+    
+    special_keys = {'{SPC}': 'space',
+                    '{LFT}': 'left',
+                    '{RGT}': 'right',
+                    '{U}': 'up',
+                    '{DWN}': 'down',
+                    '{BACK}': 'backspace',
+                    '{RET}': 'enter',
+                   }
+    
     if keys:
-        keys_only = keys
-        for sc in spec_keys:
-            while sc in keys:
-                keys = keys.replace(sc, spec_keys[sc][platform - 1]).strip()
-                keys_only = keys_only.replace(sc, '').strip()
-        sc_only = keys.replace(keys_only, '').strip()
-
-    if platform == osWindows:
-        app = os.path.join(PluginPath, 'tools', 'userinput.exe')
-        mouse = ' mouse %s %s' % (mousex, mousey)
-        mclk = ' ' + str(click)
-        keybd = ' key %s %s' % (keys, delay)
-    elif platform == osLinux:
-        app = 'xdotool'
-        mouse = ' mousemove %s %s' % (mousex, mousey)
-        mclk = ' click --repeat %s 1' % click
-        if keys_only:
-            keybd = ' type --delay %s %s' % (delay, keys_only)
-        if sc_only:
-            if keybd:
-                keybd += ' && ' + app
-            keybd += ' key ' + sc_only
-    elif platform == osOSX:
-        app = 'cliclick'
-        mouse = ' m:'
-        if click == 1:
-            mouse = ' c:'
-        elif click == 2:
-            mouse = ' dc:'
-        mouse += '%s,%s' % (mousex, mousey)
-        mclk = ''
-        keybd = ' -w %s' % delay
-        if keys_only:
-            keybd += ' t:%s' % keys_only
-        if keys != keys_only:
-            keybd += ' ' + sc_only
-
-    if keys:
-        cmd = app + keybd
+        if isinstance(keys, str):
+            # we have assumed that this method accepts a list of strings,
+            # so need the below to allow a single key to be passed in as a string as in the current codebase
+            keys = [keys]
+        if '{EX}' in keys:
+            pyautogui.hotkey(exit_cmd)
+        else:
+            parsed_keys = [special_keys.get(key, key) for key in keys]
+            pyautogui.press(parsed_keys, interval=delay)
     else:
-        cmd = app + mouse
+        pyautogui.moveTo(mousex, mousey)
         if click:
-            cmd += mclk
-
-    Log('Run command: %s' % cmd)
-    rcode = subprocess.call(cmd, shell=True)
-
-    if rcode:
-        Log('Returncode: %s' % rcode)
+            pyautogui.click()
+            
+    Log('Input command: Mouse(x=%s, y=%s, click=%s), Keyboard(%s)' % mousex, mousey, click, keys)
 
 
 def genID(renew=False):
