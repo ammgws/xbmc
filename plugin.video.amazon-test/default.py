@@ -20,7 +20,7 @@ import xbmcplugin
 import xbmcgui
 import xbmcaddon
 import xbmc
-import urlparse
+import urllib.parse
 import time
 import subprocess
 import hashlib
